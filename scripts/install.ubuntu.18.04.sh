@@ -1,18 +1,21 @@
 #!/bin/bash
 
 # Author
-# original author: https://github.com/gongzili456
-# modified by: https://github.com/haoel
+# original author:https://github.com/gongzili456
+# modified by:https://github.com/haoel
 
 # Ubuntu 18.04 系统环境
 
+COLOR_ERROR="\e[38;5;198m"
+COLOR_NONE="\e[0m"
+COLOR_SUCC="\e[92m"
 
 update_core(){
-    echo "更新系统内核"
+    echo -e "${COLOR_ERROR}当前系统内核版本太低 <$VERSION_CURR>,需要更新系统内核.${COLOR_NONE}"
     sudo apt install -y -qq --install-recommends linux-generic-hwe-18.04
     sudo apt autoremove
 
-    echo "内核更新完成，重新启动机器。。。"
+    echo -e "${COLOR_SUCC}内核更新完成,重新启动机器...${COLOR_NONE}"
     sudo reboot
 }
 
@@ -21,7 +24,7 @@ check_bbr(){
 
     # 如果已经发现 bbr 进程
     if [ -n "$has_bbr" ] ;then
-        echo "TCP BBR 拥塞控制算法已经启动"
+        echo -e "${COLOR_SUCC}TCP BBR 拥塞控制算法已经启动${COLOR_NONE}"
     else
         start_bbr
     fi
@@ -48,18 +51,34 @@ install_bbr() {
 }
 
 install_docker() {
-    echo "开始安装 Docker CE"
-    curl -fsSL https://mirrors.ustc.edu.cn/docker-ce/linux/ubuntu/gpg | sudo apt-key add -
-    sudo add-apt-repository \
-        "deb [arch=amd64] https://mirrors.ustc.edu.cn/docker-ce/linux/ubuntu \
-        $(lsb_release -cs) \
-        stable"
-    sudo apt-get update -qq
-    sudo apt-get install -y docker-ce
+    if ! [ -x "$(command -v docker)" ]; then
+        echo "开始安装 Docker CE"
+        curl -fsSL https://mirrors.ustc.edu.cn/docker-ce/linux/ubuntu/gpg | sudo apt-key add -
+        sudo add-apt-repository \
+            "deb [arch=amd64] https://mirrors.ustc.edu.cn/docker-ce/linux/ubuntu \
+            $(lsb_release -cs) \
+            stable"
+        sudo apt-get update -qq
+        sudo apt-get install -y docker-ce
+    else
+        echo -e "${COLOR_SUCC}Docker CE 已经安装成功了${COLOR_NONE}"
+    fi
+}
+
+
+check_container(){
+    has_container=$(sudo docker ps --format "{{.Names}}" | grep "$1")
+
+    # test 命令规范： 0 为 true, 1 为 false, >1 为 error
+    if [ -n "$has_container" ] ;then
+        return 0
+    else
+        return 1
+    fi
 }
 
 install_certbot() {
-    echo "开始安装 certbot"
+    echo "开始安装 certbot 命令行工具"
     sudo apt-get update -qq
     sudo apt-get install -y software-properties-common
     sudo add-apt-repository universe
@@ -69,24 +88,43 @@ install_certbot() {
 }
 
 create_cert() {
+    if ! [ -x "$(command -v certbot)" ]; then
+        install_certbot
+    fi
+
     echo "开始生成 SSL 证书"
-    read -p "请输入你要使用的域名: " domain
+    echo -e "${COLOR_ERROR}注意：生成证书前,需要将域名指向一个有效的 IP,否则无法创建证书.${COLOR_NONE}"
+    read -p "是否已经将域名指向了 IP？[Y/n]" has_record
 
-    create_cert $domain
+    if ! [[ "$has_record" = "Y" ]] ;then
+        echo "请操作完成后再继续."
+        return
+    fi
+
+    read -p "请输入你要使用的域名:" domain
+
     sudo certbot certonly --standalone -d $domain
-
 }
 
 install_gost() {
+    if ! [ -x "$(command -v docker)" ]; then
+        echo -e "${COLOR_ERROR}未发现Docker，请求安装 Docker ! ${COLOR_NONE}" 
+        return
+    fi
 
-    echo "准备启动 Gost 代理程序，为了安全，需要使用用户名与密码进行认证。"
+    if check_container gost ; then
+        echo -e "${COLOR_ERROR}Gost 容器已经在运行了，你可以手动停止容器，并删除容器，然后再执行本命令来重新安装 Gost。 ${COLOR_NONE}"
+        return
+    fi
+
+    echo "准备启动 Gost 代理程序,为了安全,需要使用用户名与密码进行认证."
     read -p "请输入你要使用的域名：" DOMAIN
-    read -p "请输入你要使用的用户名: " USER
-    read -p "请输入你要使用的密码: " PASS
+    read -p "请输入你要使用的用户名:" USER
+    read -p "请输入你要使用的密码:" PASS
     read -p "请输入HTTP/2需要侦听的端口号(443)：" PORT 
 
     if [[ -z "${PORT// }" ]] || ! [[ "${PORT}" =~ ^[0-9]+$ ]] || ! [ "$PORT" -ge 1 -a "$PORT" -le 655535 ]; then
-        echo "非法端口，使用默认端口443！"
+        echo -e "${COLOR_ERROR}非法端口,使用默认端口 443 !${COLOR_NONE}"
         PORT=443
     fi
 
@@ -95,28 +133,52 @@ install_gost() {
     CERT=${CERT_DIR}/live/${DOMAIN}/fullchain.pem
     KEY=${CERT_DIR}/live/${DOMAIN}/privkey.pem
 
-    docker run -d --name gost \
+    sudo docker run -d --name gost \
         -v ${CERT_DIR}:${CERT_DIR}:ro \
         --net=host ginuerzh/gost \
         -L "http2://${USER}:${PASS}@${BIND_IP}:${PORT}?cert=${CERT}&key=${KEY}&probe_resist=code:400"
 }
 
-create_cront_job(){
-    echo "0 0 1 * * /usr/bin/certbot renew --force-renewal" >> /var/spool/cron/crontabs/root
-    echo "5 0 1 * * /usr/bin/docker restart gost" >> /var/spool/cron/crontabs/root
+crontab_exists() {
+    crontab -l 2>/dev/null | grep "$1" >/dev/null 2>/dev/null
 }
 
+create_cron_job(){
+    # 写入前先检查，避免重复任务。
+    if ! crontab_exists "cerbot renew --force-renewal"; then
+        echo "0 0 1 * * /usr/bin/certbot renew --force-renewal" >> /var/spool/cron/crontabs/root
+        echo "${COLOR_SUCC}成功安装证书renew定时作业！${COLOR_NONE}"
+    else
+        echo "${COLOR_SUCC}证书renew定时作业已经安装过！${COLOR_NONE}"
+    fi
+
+    if ! crontab_exists "docker restart gost"; then 
+        echo "5 0 1 * * /usr/bin/docker restart gost" >> /var/spool/cron/crontabs/root
+        echo "${COLOR_SUCC}成功安装gost更新证书定时作业！${COLOR_NONE}"
+    else
+        echo "${COLOR_SUCC}gost更新证书定时作业已经成功安装过！${COLOR_NONE}"
+    fi
+}
 
 install_shadowsocks(){
+    if ! [ -x "$(command -v docker)" ]; then
+        echo -e "${COLOR_ERROR}未发现Docker，请求安装 Docker ! ${COLOR_NONE}" 
+        return
+    fi
 
-    echo "准备启动 ShadowSocks 代理程序，为了安全，需要使用用户名与密码进行认证。"
-    read -p "请输入你要使用的密码: " PASS
+    if check_container ss ; then
+        echo -e "${COLOR_ERROR}ShadowSocks 容器已经在运行了，你可以手动停止容器，并删除容器，然后再执行本命令来重新安装 ShadowSocks。${COLOR_NONE}"
+        return
+    fi
+
+    echo "准备启动 ShadowSocks 代理程序,为了安全,需要使用用户名与密码进行认证."
+    read -p "请输入你要使用的密码:" PASS
     read -p "请输入ShadowSocks需要侦听的端口号(1984)：" PORT 
 
     BIND_IP=0.0.0.0
 
     if [[ -z "${PORT// }" ]] || ! [[ "${PORT}" =~ ^[0-9]+$ ]] || ! [ "$PORT" -ge 1 -a "$PORT" -le 655535 ]; then
-        echo "非法端口，使用默认端口1984！"
+        echo -e "${COLOR_ERROR}非法端口,使用默认端口 1984 !${COLOR_NONE}"
         PORT=1984
     fi 
 
@@ -126,13 +188,22 @@ install_shadowsocks(){
 }
 
 install_vpn(){
+    if ! [ -x "$(command -v docker)" ]; then
+        echo -e "${COLOR_ERROR}未发现Docker，请求安装 Docker ! ${COLOR_NONE}" 
+        return
+    fi
 
-    echo "准备启动 VPN/L2TP 代理程序，为了安全，需要使用用户名与密码进行认证。"
-    read -p "请输入你要使用的用户名: " USER
-    read -p "请输入你要使用的密码: " PASS
-    read -p "请输入你要使用的PSK Key: " PSK
+    if check_container vpn ; then
+        echo -e "${COLOR_ERROR}VPN 容器已经在运行了，你可以手动停止容器，并删除容器，然后再执行本命令来重新安装 VPN。${COLOR_NONE}"
+        return
+    fi
 
-    sudo docker run -d  --privileged \
+    echo "准备启动 VPN/L2TP 代理程序,为了安全,需要使用用户名与密码进行认证."
+    read -p "请输入你要使用的用户名:" USER
+    read -p "请输入你要使用的密码:" PASS
+    read -p "请输入你要使用的PSK Key:" PSK
+
+    sudo docker run -d --name vpn --privileged \
         -e PSK=${PSK} \
         -e USERNAME=${USER} -e PASSWORD=${PASS} \
         -p 500:500/udp \
@@ -143,8 +214,13 @@ install_vpn(){
 }
 
 install_brook(){
-    wget -N --no-check-certificate https://raw.githubusercontent.com/ToyoDAdoubi/doubi/master/brook.sh && chmod +x brook.sh && bash brook.sh
+    brook_file="/usr/local/brook/brook"
+    [[ -e ${brook_file} ]] && echo -e "${COLOR_ERROR}Brook 已经安装，请检查!" && return
+    wget -N --no-check-certificate https://raw.githubusercontent.com/ToyoDAdoubi/doubi/master/brook.sh &&\
+        chmod +x brook.sh && sudo bash brook.sh
 }
+
+# TODO: install v2ray
 
 init(){
     VERSION_CURR=$(uname -r | awk -F '-' '{print $1}')
@@ -158,10 +234,18 @@ init(){
 
     while [ 1 == 1 ]
     do
-        PS3="Please select a option: "
+        PS3="Please select a option:"
         re='^[0-9]+$'
-        select opt in "安装 TCP BBR 拥塞控制算法" "安装 Docker 服务程序" "安装 Let's crypt 证书" "安装 Gost HTTP/2 代理服务" \
-                      "安装 ShadowSocks 代理服务" "安装 VPN/L2TP 服务" "安装 Brook 代理服务" "创建证书更新 CronJob" "退出" ; do
+        select opt in "安装 TCP BBR 拥塞控制算法" \
+                    "安装 Docker 服务程序" \
+                    "创建 SSL 证书" \
+                    "安装 Gost HTTP/2 代理服务" \
+                    "安装 ShadowSocks 代理服务" \
+                    "安装 VPN/L2TP 服务" \
+                    "安装 Brook 代理服务" \
+                    "创建证书更新 CronJob" \
+                    "退出" ; do
+
             if ! [[ $REPLY =~ $re ]] ; then
                 echo -e "${COLOR_ERROR}Invalid option. Please input a number.${COLOR_NONE}"
                 break;
@@ -170,9 +254,9 @@ init(){
                 break;
             elif (( REPLY == 2 )) ; then
                 install_docker
-                break
+                break 
             elif (( REPLY == 3 )) ; then
-                install_certbot
+                create_cert
                 loop=1
                 break
             elif (( REPLY == 4 )) ; then
@@ -188,7 +272,7 @@ init(){
                 install_brook
                 break
             elif (( REPLY == 8 )) ; then
-                create_cront_job
+                create_cron_job
                 break
             elif (( REPLY == 9 )) ; then
                 exit

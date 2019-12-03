@@ -3,7 +3,7 @@
 # 科学上网
 
 作者：左耳朵 [http://coolshell.cn](http://coolshell.cn)
-更新时间：2019-11-07
+更新时间：2019-11-24
 
 这篇文章可以写的更好，欢迎到 [https://github.com/haoel/haoel.github.io](https://github.com/haoel/haoel.github.io) 更新
 
@@ -35,6 +35,8 @@
     - [6.2 V2Ray](#62-v2ray)
     - [6.3 补充](#63-补充)
   - [7. 其它](#7-其它)
+    - [7.1 其它方式](#71-其它方式)
+    - [7.2 搭建脚本](#72-搭建脚本)
 
 ## 0. 序
 
@@ -139,6 +141,8 @@ NCP线路全长13,000公里，连接美国俄勒冈州希尔斯伯勒，连接�
 
 ## 3. 搭建相关代理服务
 
+> 注：如下的搭建和安装脚本可参看本库的 scripts 目录下的脚本，如： [Ubuntu 18.04 Installation Script](https://github.com/haoel/haoel.github.io/blob/master/scripts/install.ubuntu.18.04.sh) （感谢网友 [@gongzili456](https://github.com/gongzili456) 开发）
+
 ### 3.1 设置Docker服务
 
 首先，你要安装一个Docker CE 服务，这里你要去看一下docker官方的安装文档：
@@ -172,7 +176,7 @@ $ sudo certbot certonly --standalone
 
 接下来就是启动 gost 服务了，我们这里还是使用 Docker 的方式建立 gost 服务器。
 ```
-#!bin/bash
+#!/bin/bash
 
 ## 下面的四个参数需要改成你的
 DOMAIN="YOU.DOMAIN.NAME"
@@ -181,10 +185,10 @@ PASS="password"
 PORT=443
 
 BIND_IP=0.0.0.0
-CERT_DIR=/etc/letsencrypt/
+CERT_DIR=/etc/letsencrypt
 CERT=${CERT_DIR}/live/${DOMAIN}/fullchain.pem
 KEY=${CERT_DIR}/live/${DOMAIN}/privkey.pem
-docker run -d --name gost \
+sudo docker run -d --name gost \
     -v ${CERT_DIR}:${CERT_DIR}:ro \
     --net=host ginuerzh/gost \
     -L "http2://${USER}:${PASS}@${BIND_IP}:${PORT}?cert=${CERT}&key=${KEY}&probe_resist=code:404"
@@ -372,9 +376,19 @@ VPS 上正常安装并配置好 V2Ray，注意两点:
 
 ## 7. 其它 
 
+### 7.1 其它方式
+
 如下还有一些其它的方式（注：均由网友提供，我没有验证过）
 
 [Outline](https://getoutline.org/en/home) 是由 Google 旗下 [Jigsaw](https://jigsaw.google.com/) 团队开发的整套翻墙解决方案。Server 端使用 Shadowsocks，MacOS, Windows, iOS, Android 均有官方客户端。使用 Outline Manager 可以一键配置 DigitalOcean。其他平台例如 AWS, Google Cloud 也提供相应脚本。主要优点就是使用简单并且整个软件栈全部[开源](https://github.com/Jigsaw-Code/?q=outline)，有专业团队长期维护。
+
+### 7.2 搭建脚本
+
+上述的搭建和安装脚本可参看本库的 scripts 目录下的脚本（感谢网友 [@gongzili456](https://github.com/gongzili456) 开发）
+
+-  [Ubuntu 18.04 Installation Script](https://github.com/haoel/haoel.github.io/blob/master/scripts/install.ubuntu.18.04.sh) 
+
+欢迎补充和改善！
 
 （全文完）
 
