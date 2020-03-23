@@ -3,7 +3,7 @@
 # 科学上网
 
 作者：左耳朵 [http://coolshell.cn](http://coolshell.cn)
-更新时间：2019-11-24
+更新时间：2020-03-10
 
 这篇文章可以写的更好，欢迎到 [https://github.com/haoel/haoel.github.io](https://github.com/haoel/haoel.github.io) 更新
 
@@ -90,7 +90,7 @@
 - [Google Cloud Platform](https://cloud.google.com/)提供免费试用，赠送300刀赠金（需要国际信用卡）
 - [Linode](https://www.linode.com)买个一月USD5刀的VPS
 - [Conoha](https://www.conoha.jp/zh/)上买一个日本的VPS，一个月900日元 （可以支付宝）
-- [Vultr](https://www.vultr.com)上买一个日本的VPS，一个月5刀 （可以支付宝）
+- [Vultr](https://www.vultr.com)上买一个日本的VPS，一个月5刀 （可以支付宝）(注：据说被墙的IP太多）
 - [Oracle Cloud](https://www.oracle.com/cloud/free/)两台VPS无限期使用，可选美日韩等地（需要国际信用卡）
 
 
@@ -119,7 +119,6 @@
 
 - [搬瓦工](https://bwh8.net/aff.php?aff=39384)  这应该是美区最好的一个用来科学上网的VPS提供商了，实测飞快。购买时你需要注意VPS规格上的 `CN2` 和 `GIA` 的描述。（注：点击主页右上角的 `regisiter` 以后，你可以看到页面上方有两个导航条，在下面的导航条上点 `Services` -> `Order New Services` 就可以看到所有的列表了。买完后，你可能需要重装一下操作系统，装成64位带BBR的 ）
 - [Gigsgigscloud](https://clientarea.gigsgigscloud.com/index.php?/cart/cloudlet-v-hk/&step=0) CN2 GIA 在香港的结点是很不错的，当然，价格也很不错（建议几个人一起平摊费用）
-- [Kvmla](https://www.kvmla.com/) 香港地区的CN2 GIA提供商 每月80元
 - [Hostdare](https://manage.hostdare.com/index.php) 的CN2 GIA产品也是三网直连，KVM和OpenVZ两种架构，KVM产品长期缺货
 
 更多的可以参考这篇文章《[CN2 GIA VPS主机收集整理汇总-电信,联通,移动三网CN2 GIA线路VPS主机](https://wzfou.com/cn2-gia-vps/)》（注：随时间推移，这篇文章的内容可能会失效）
@@ -281,7 +280,10 @@ gost -L ss://aes-128-cfb:passcode@:1984 -F 'https://USER:PASS@DOMAIN:443'
 你的ShadowSocks客户端只需要简单的配置一个本机的 SS 配置就好了。
 
 
-对于手机端，我带用的是iPhone下的 `Potatso Lite` 和 `ShadowRocket` 这两个APP直接支持 HTTPS 的代理，配置上就好了。
+对于手机端
+
+ - iPhone，可以考虑使用 `ShadowRocket` （需要付费），其中使用 HTTPS 的代理，配置上就好了。
+ - Android，可以考虑使用这个Plugin - [ShadowsocksGostPlugin](https://github.com/xausky/ShadowsocksGostPlugin) 
 
 
 ### 4.2 Shadowsocks 客户端
@@ -325,7 +327,10 @@ V2Ray 可以配置成一个非常隐蔽的代理软件。
  - V2Ray 项目地址：[https://github.com/v2ray/v2ray-core](https://github.com/v2ray/v2ray-core)
  - V2Ray Telegram 使用群链接：[https://t.me/projectv2ray](https://t.me/projectv2ray)
 
-V2Ray 配合一些模块目前来说可以伪装成正常的流量。但是配置相当复杂。大家可以自己Google自己玩吧。
+
+一般来说，祼用 V2Ray 不是一个很好的方式，现在比较流行的是使用nginx来代理，也就是 V2Ray + Websocket + TLS + Nginx，可以参看这篇文章《[V2Ray+WebSocket+TLS+Nginx配置与使用教程](https://doubibackup.com/v2ray-ws-tls-nginx.html)》（需要翻墙）。
+
+我个人觉得，配置起来比较复杂，而且环节太多，不如直接用 `gost` 的 https/http2 的方式配置起来简单，所以，没有放在前面。
 
 
 ### 5.2 Brook
