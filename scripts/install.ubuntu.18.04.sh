@@ -43,7 +43,7 @@ start_bbr(){
 
 install_bbr() {
     # 如果内核版本号满足最小要求
-    if [ $VERSION_CURR > $VERSION_MIN ]; then
+    if [[ $VERSION_CURR > $VERSION_MIN ]]; then
         check_bbr
     else
         update_core
@@ -53,9 +53,9 @@ install_bbr() {
 install_docker() {
     if ! [ -x "$(command -v docker)" ]; then
         echo "开始安装 Docker CE"
-        curl -fsSL https://mirrors.ustc.edu.cn/docker-ce/linux/ubuntu/gpg | sudo apt-key add -
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
         sudo add-apt-repository \
-            "deb [arch=amd64] https://mirrors.ustc.edu.cn/docker-ce/linux/ubuntu \
+            "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
             $(lsb_release -cs) \
             stable"
         sudo apt-get update -qq
@@ -94,16 +94,16 @@ create_cert() {
 
     echo "开始生成 SSL 证书"
     echo -e "${COLOR_ERROR}注意：生成证书前,需要将域名指向一个有效的 IP,否则无法创建证书.${COLOR_NONE}"
-    read -p "是否已经将域名指向了 IP？[Y/n]" has_record
+    read -r -p "是否已经将域名指向了 IP？[Y/n]" has_record
 
     if ! [[ "$has_record" = "Y" ]] ;then
         echo "请操作完成后再继续."
         return
     fi
 
-    read -p "请输入你要使用的域名:" domain
+    read -r -p "请输入你要使用的域名:" domain
 
-    sudo certbot certonly --standalone -d $domain
+    sudo certbot certonly --standalone -d "${domain}"
 }
 
 install_gost() {
@@ -118,25 +118,25 @@ install_gost() {
     fi
 
     echo "准备启动 Gost 代理程序,为了安全,需要使用用户名与密码进行认证."
-    read -p "请输入你要使用的域名：" DOMAIN
-    read -p "请输入你要使用的用户名:" USER
-    read -p "请输入你要使用的密码:" PASS
-    read -p "请输入HTTP/2需要侦听的端口号(443)：" PORT 
+    read -r -p "请输入你要使用的域名：" DOMAIN
+    read -r -p "请输入你要使用的用户名:" USER
+    read -r -p "请输入你要使用的密码:" PASS
+    read -r -p "请输入HTTP/2需要侦听的端口号(443)：" PORT 
 
-    if [[ -z "${PORT// }" ]] || ! [[ "${PORT}" =~ ^[0-9]+$ ]] || ! [ "$PORT" -ge 1 -a "$PORT" -le 655535 ]; then
+    if [[ -z "${PORT// }" ]] || ! [[ "${PORT}" =~ ^[0-9]+$ ]] || ! [ "$PORT" -ge 1 ] && [ "$PORT" -le 655535 ]; then
         echo -e "${COLOR_ERROR}非法端口,使用默认端口 443 !${COLOR_NONE}"
         PORT=443
     fi
 
     BIND_IP=0.0.0.0
-    CERT_DIR=/etc/letsencrypt/
+    CERT_DIR=/etc/letsencrypt
     CERT=${CERT_DIR}/live/${DOMAIN}/fullchain.pem
     KEY=${CERT_DIR}/live/${DOMAIN}/privkey.pem
 
     sudo docker run -d --name gost \
         -v ${CERT_DIR}:${CERT_DIR}:ro \
         --net=host ginuerzh/gost \
-        -L "http2://${USER}:${PASS}@${BIND_IP}:${PORT}?cert=${CERT}&key=${KEY}&probe_resist=code:400"
+        -L "http2://${USER}:${PASS}@${BIND_IP}:${PORT}?cert=${CERT}&key=${KEY}&probe_resist=code:400&knock=www.google.com"
 }
 
 crontab_exists() {
@@ -145,7 +145,7 @@ crontab_exists() {
 
 create_cron_job(){
     # 写入前先检查，避免重复任务。
-    if ! crontab_exists "cerbot renew --force-renewal"; then
+    if ! crontab_exists "certbot renew --force-renewal"; then
         echo "0 0 1 * * /usr/bin/certbot renew --force-renewal" >> /var/spool/cron/crontabs/root
         echo "${COLOR_SUCC}成功安装证书renew定时作业！${COLOR_NONE}"
     else
@@ -172,12 +172,12 @@ install_shadowsocks(){
     fi
 
     echo "准备启动 ShadowSocks 代理程序,为了安全,需要使用用户名与密码进行认证."
-    read -p "请输入你要使用的密码:" PASS
-    read -p "请输入ShadowSocks需要侦听的端口号(1984)：" PORT 
+    read -r -p "请输入你要使用的密码:" PASS
+    read -r -p "请输入ShadowSocks需要侦听的端口号(1984)：" PORT 
 
     BIND_IP=0.0.0.0
 
-    if [[ -z "${PORT// }" ]] || ! [[ "${PORT}" =~ ^[0-9]+$ ]] || ! [ "$PORT" -ge 1 -a "$PORT" -le 655535 ]; then
+    if [[ -z "${PORT// }" ]] || ! [[ "${PORT}" =~ ^[0-9]+$ ]] || ! [ "$PORT" -ge 1 ] && [  "$PORT" -le 655535 ]; then
         echo -e "${COLOR_ERROR}非法端口,使用默认端口 1984 !${COLOR_NONE}"
         PORT=1984
     fi 
@@ -199,13 +199,13 @@ install_vpn(){
     fi
 
     echo "准备启动 VPN/L2TP 代理程序,为了安全,需要使用用户名与密码进行认证."
-    read -p "请输入你要使用的用户名:" USER
-    read -p "请输入你要使用的密码:" PASS
-    read -p "请输入你要使用的PSK Key:" PSK
+    read -r -p "请输入你要使用的用户名:" USER
+    read -r -p "请输入你要使用的密码:" PASS
+    read -r -p "请输入你要使用的PSK Key:" PSK
 
     sudo docker run -d --name vpn --privileged \
-        -e PSK=${PSK} \
-        -e USERNAME=${USER} -e PASSWORD=${PASS} \
+        -e PSK="${PSK}" \
+        -e USERNAME="${USER}" -e PASSWORD="${PASS}" \
         -p 500:500/udp \
         -p 4500:4500/udp \
         -p 1701:1701/tcp \
@@ -232,7 +232,7 @@ init(){
     COLUMNS=50
     echo -e "\n菜单选项\n"
 
-    while [ 1 == 1 ]
+    while true 
     do
         PS3="Please select a option:"
         re='^[0-9]+$'
@@ -257,7 +257,7 @@ init(){
                 break 
             elif (( REPLY == 3 )) ; then
                 create_cert
-                loop=1
+                #loop=1
                 break
             elif (( REPLY == 4 )) ; then
                 install_gost
@@ -282,7 +282,8 @@ init(){
         done
     done
 
-     IFS=$OIFS  # Restore the IFS
+    echo "${opt}"
+    IFS=$OIFS  # Restore the IFS
 }
 
 init
