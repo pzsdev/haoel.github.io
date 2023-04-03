@@ -3,7 +3,7 @@
 # 科学上网
 
 作者：左耳朵 [http://coolshell.cn](http://coolshell.cn)
-更新时间：2023-03-28
+更新时间：2023-04-01
 
 这篇文章可以写的更好，欢迎到 [https://github.com/haoel/haoel.github.io](https://github.com/haoel/haoel.github.io) 更新
 
@@ -75,8 +75,6 @@
 - 新闻，如BBC。 BBC是全球比较出众的媒体，有太多的有价值资源和内容了，比如纪录片、学英文……
 - 编程，有很多编程的场景需要翻墙，比如，Go语言编程时的 go get 中的很多库是放在 Google的服务器上， 然而Google是全部被墙，包括 Android 和其它一些文档和资源也是一样。包括 SourceForge 的某些项目也需要科学上网，Docker Registry也有部分被墙，还有偶尔抽风的Github，以及不能访问的gist……
 - ……等等
-
-是的，我的互联网不是——全是骗子的百度、充满广告的微信朋友圈、质量低下的公众号、娱乐至死的新浪微博、只有抖机灵和“怎么看XX”的知乎、毫无营养的今日头条…… 在这样的网络空间里，我真的无法生存…… 这根本不是互联网，不是为我服务的互联网，而是在消费我的互联网，是让我变傻变笨的互联网…… 我不能忍，因为它影响到了我的生存……
 
 
 ## 1. 英文能力
@@ -152,7 +150,7 @@ NCP线路全长13,000公里，连接美国俄勒冈州希尔斯伯勒，连接�
 关于 `NCP` 线路的主机提供商，下面罗列两个（欢迎补充）
 
 - [50KVM VPS](https://www.50kvm.com) 截止2018年12月2日KVM 产品最低价格￥81.60/月。
-- [OLVPS](https://t667.com/) 截止2018年12月2日KVM 产品最低价格¥22/月。（**特别注意** ： 在 OLVPS 上的《[服务条款](https://olvps.com/index.php?rp=/knowledgebase/1/TOS.html)》 中有一条说明：“**禁止OpenV*P*N/Socks5/PPTP/L2TP等软件、公共代理**”，所以，可能OLPVS并不太适合）
+- [OLVPS](https://www.olvps.com/) 截止2018年12月2日KVM 产品最低价格¥22/月。（**特别注意** ： 在 OLVPS 上的《[服务条款](https://olvps.com/index.php?rp=/knowledgebase/1/TOS.html)》 中有一条说明：“**禁止OpenV*P*N/Socks5/PPTP/L2TP等软件、公共代理**”，所以，可能OLPVS并不太适合）
 
 ## 3. 搭建相关代理服务
 
@@ -812,7 +810,7 @@ nameserver 172.20.1.1  #<--- 透明网关 EC2 NAT 实例
 nameserver 172.20.0.2  #<--- AWS 的 DNS 服务
 search [zone].compute.internal
 ```
-> Note
+> **Note**
 >
 > 新版的 Ubuntu 已经把 DNS Resolver 托管给了 systemd 的 `systemd-resolved` 服务，所以需要把 `/etc/resolv.conf` 文件改成软链接，指向 `systemd-resolved` 的配置文件，如：
 >
@@ -988,7 +986,7 @@ chmod +x warp.sh
  - 4 - 安装 WireGuard 相关组件
  - 7 - 自动配置 WARP WireGuard 双栈全局网络
 
->**Note:**
+>**Note**
 > 1. 如果没有 IPv6 网络，那么第 7 步可以换成第 5 步 自动配置 WARP WireGuard IPv4 网络，或是执行 `./warp.sh 4`。
 >
 > 2. 你需要备份一下你的帐号和配置文件，在 `/etc/warp/` 目录下，主要是两个文件，一个是 `wgcf-account.toml`，一个是 `wgcf-profile.conf`
@@ -1025,7 +1023,7 @@ chmod +x warp.sh
 
 如果 WARP 模式安装不能成功，那么你可以使用如下的代理模式。代理模式也就是通过一个代理来访问 Cloudflare WARP 的服务，这样就可以访问到原生 IP 了。
 
-> **Note:**
+> **Note**
 >
 > 下面的步骤主要使用 Cloudflare 的官方客户端，也许会随时间流逝导致过时，你可以参考 [Cloudflare WARP 的官方文档](https://developers.cloudflare.com/warp-client/get-started/linux/)
 
@@ -1109,10 +1107,12 @@ curl -x "socks5://127.0.0.1:40000" ipinfo.io
 ```shell
 gost -L "http://:8080" -F "socks5://127.0.0.1:40000"
 ```
-当然，上面的配置是不够好的，我们最好使用有证书的 HTTPS 代理。这里的内容参见于 前的面 [3.3 用 Gost 设置 HTTPS 服务](#33-用-gost-设置-https-服务)。下面是加上了Cloudflare WARP 转发的 Docker 启动：
+当然，上面的配置是不够好的，我们最好使用有证书的 HTTPS 代理。这里的内容参见于 前的面 [3.3 用 Gost 设置 HTTPS 服务](#33-用-gost-设置-https-服务)。
 
-- 原来的 443 端口直接代理
-- 新增了 8443 端口转发到 Cloudflare WARP 的 Socks5 代理上
+为了使用两种不同的代理，Gost需要启动两个服务：
+
+- 一个是通过 443 端口直接代理
+- 另一个是通过 8443 端口转发到 Cloudflare WARP 的 Socks5 代理上
 
 ```shell
 # 下面的四个参数需要改成你的
@@ -1128,9 +1128,17 @@ KEY=${CERT_DIR}/live/${DOMAIN}/privkey.pem
 sudo docker run -d --name gost \
     -v ${CERT_DIR}:${CERT_DIR}:ro \
     --net=host ginuerzh/gost \
-    -L "http2://${USER}:${PASS}@${BIND_IP}:${PORT}?cert=${CERT}&key=${KEY}&probe_resist=code:404&knock=www.google.com" \
-    -L "http2://${USER}:${PASS}@${BIND_IP}:8443?cert=${CERT}&key=${KEY}&probe_resist=code:404&knock=www.google.com" -F "socks://localhost:40000
+    -L "http2://${USER}:${PASS}@${BIND_IP}:${PORT}?cert=${CERT}&key=${KEY}&probe_resist=code:404&knock=www.google.com"
+
+sudo docker run -d --name gost-warp \
+    -v ${CERT_DIR}:${CERT_DIR}:ro \
+    --net=host ginuerzh/gost \
+    -L "http2://${USER}:${PASS}@${BIND_IP}:8443?cert=${CERT}&key=${KEY}&probe_resist=code:404&knock=www.google.com" -F "socks://localhost:40000"
 ```
+
+> **Note**
+>
+> 你也可以使用 V2Ray 的路由模式，参见 [V2Ray 的路由功能](https://www.v2ray.com/chapter_02/03_routing.html)。V2Ray的路由模式就比 gost 要强很多。你还可以通过使用预定义域名列表 `geolocation-cn` 把其的路由转发到 Cloudflare WARP 的 Socks5 代理上，以避免你的 VPS 的 IP 被暴露。
 
 **其它事宜**
 
@@ -1153,10 +1161,6 @@ Status update: Unable to connect. Reason: Insufficient system resource: file des
 LimitNOFILE=65535
 LimitNOFILESoft=65535
 ```
-
-最后，如果你用 V2Ray，你也可以使用 V2Ray 的路由模式，参见 [V2Ray 的路由功能](https://www.v2ray.com/chapter_02/03_routing.html)。你可以使用预定义域名列表 g`eolocation-cn` 把其的路由转发到 Cloudflare WARP 的 Socks5 代理上，以避免你的 VPS 的 IP 被暴露。
-
-
 
 ## 10. 其它
 
